@@ -12,8 +12,9 @@ __license__ = 'MIT'
 __copyright__ = 'Copyright 2014, Lucas Ou-Yang'
 
 import copy
+import datetime
+import json
 import logging
-import re
 import re
 from collections import defaultdict
 
@@ -41,7 +42,8 @@ NO_STRINGS = set()
 A_REL_TAG_SELECTOR = "a[rel=tag]"
 A_HREF_TAG_SELECTOR = ("a[href*='/tag/'], a[href*='/tags/'], "
                        "a[href*='/topic/'], a[href*='?keyword=']")
-RE_LANG = r'^[A-Za-z]{2}$'
+RE_LANG = re.compile(r'^[A-Za-z]{2}$')
+RE_NEXTLINE = re.compile(r'[\n\r\f\v]+')
 
 good_paths = ['story', 'article', 'feature', 'featured', 'slides',
               'slideshow', 'gallery', 'news', 'video', 'media',
@@ -169,7 +171,7 @@ class ContentExtractor(object):
         #    return [] # Failed to find anything
         # return authors
 
-    def get_publishing_date(self, url, doc):
+    def get_publishing_date(self, url, doc, top_node):
         """3 strategies for publishing date extraction. The strategies
         are descending in accuracy and the next strategy is only
         attempted if a preferred one fails.
@@ -180,15 +182,19 @@ class ContentExtractor(object):
         """
 
         def parse_date_str(date_str):
-            if date_str:
-                try:
-                    return date_parser(date_str)
-                except (ValueError, OverflowError, AttributeError, TypeError):
-                    # near all parse failures are due to URL dates without a day
-                    # specifier, e.g. /2014/04/
-                    return None
+            try:
+                datetime_obj = date_parser(date_str)
+                if datetime_obj.tzinfo is None:
+                    datetime_obj = datetime_obj.replace(tzinfo=datetime.timezone.utc)
+                else:
+                    datetime_obj = datetime_obj.astimezone(datetime.timezone.utc)
+                return datetime_obj
+            except (OverflowError, ValueError):
+                # near all parse failures are due to URL dates without a day
+                # specifier, e.g. /2014/04/
+                return None
 
-        date_match = re.search(urls.STRICT_DATE_REGEX, url)
+        date_match = re.search(urls.DATE_REGEX, url)
         if date_match:
             date_str = date_match.group(0)
             datetime_obj = parse_date_str(date_str)
@@ -196,40 +202,97 @@ class ContentExtractor(object):
                 return datetime_obj
 
         PUBLISH_DATE_TAGS = [
-            {'attribute': 'property', 'value': 'rnews:datePublished',
-             'content': 'content'},
-            {'attribute': 'property', 'value': 'article:published_time',
-             'content': 'content'},
-            {'attribute': 'name', 'value': 'OriginalPublicationDate',
-             'content': 'content'},
-            {'attribute': 'itemprop', 'value': 'datePublished',
-             'content': 'datetime'},
-            {'attribute': 'property', 'value': 'og:published_time',
-             'content': 'content'},
-            {'attribute': 'name', 'value': 'article_date_original',
-             'content': 'content'},
-            {'attribute': 'name', 'value': 'publication_date',
-             'content': 'content'},
-            {'attribute': 'name', 'value': 'sailthru.date',
-             'content': 'content'},
-            {'attribute': 'name', 'value': 'PublishDate',
-             'content': 'content'},
-            {'attribute': 'pubdate', 'value': 'pubdate',
-             'content': 'datetime'},
+            {'attribute': 'property', 'value': 'rnews:datePublished', 'content': 'content'},
+            {'attribute': 'property', 'value': 'article:published_time', 'content': 'content'},
+            {'attribute': 'name', 'value': 'OriginalPublicationDate', 'content': 'content'},
+            {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'datetime'},
+            {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'full-date'},
+            {'attribute': 'property', 'value': 'og:published_time', 'content': 'content'},
+            {'attribute': 'name', 'value': 'article_date_original', 'content': 'content'},
+            {'attribute': 'name', 'value': 'publication_date', 'content': 'content'},
+            {'attribute': 'name', 'value': 'sailthru.date', 'content': 'content'},
+            {'attribute': 'name', 'value': 'PublishDate', 'content': 'content'},
+            {'attribute': 'name', 'value': 'publishdate', 'content': 'content'},
+            {'attribute': 'name', 'value': 'article.created', 'content': 'content'},
+            {'attribute': 'name', 'value': 'timestamp', 'content': 'content'},
+            {'attribute': 'name', 'value': 'pubdate', 'content': 'content'},
+            {'attribute': 'name', 'value': 'date', 'content': 'content'},
+            {'attribute': 'name', 'value': 'article.published', 'content': 'content'},
+            {'attribute': 'name', 'value': 'dc.date.issued', 'content': 'content'},
+            {'attribute': 'name', 'value': 'cxenseparse:recs:publishtime', 'content': 'content'},
+            {'attribute': 'name', 'value': 'published-date', 'content': 'content'},
+            {'attribute': 'name', 'value': 'date_published', 'content': 'content'},
+            {'attribute': 'property', 'value': 'bt:pubdate', 'content': 'content'},
+            {'attribute': 'itemprop', 'value': 'datepublished', 'content': 'content'},
+            {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'content'},
+            {'attribute': 'itemprop', 'value': 'datecreated', 'content': 'content'},
+            {'attribute': 'itemprop', 'value': 'dateCreated', 'content': 'content'},
+            {'attribute': 'itemprop', 'value': 'datePosted', 'content': 'content'},
+            {'attribute': 'http-equiv', 'value': 'date', 'content': 'content'},
+            {'attribute': 'class', 'value': 'date', 'content': 'content'}
         ]
+
+        def get_path(node):
+            path = []
+            while node is not None:
+                path.append(node)
+                node = node.getparent()
+            path.reverse()
+            return path
+
+        top_node_path = get_path(top_node)
+        results = []
+
         for known_meta_tag in PUBLISH_DATE_TAGS:
             meta_tags = self.parser.getElementsByTag(
                 doc,
                 attr=known_meta_tag['attribute'],
                 value=known_meta_tag['value'])
-            if meta_tags:
+            for meta_tag in meta_tags:
                 date_str = self.parser.getAttribute(
-                    meta_tags[0],
-                    known_meta_tag['content'])
-                datetime_obj = parse_date_str(date_str)
-                if datetime_obj:
-                    return datetime_obj
+                    meta_tag,
+                    known_meta_tag['content']) or ''
+                for possible_date_str in (date_str, meta_tag.text_content()):
+                    datetime_obj = parse_date_str(possible_date_str.strip())
+                    if datetime_obj:
+                        results.append((meta_tag, datetime_obj))
 
+        def common_length(path1, path2):
+            i = 0
+            while i < len(path1) and i < len(path2) and path1[i] == path2[i]:
+                i += 1
+            return i
+
+        if results:
+            # select result with max common path to top_node
+            results = [(-common_length(get_path(node), top_node_path), datetime_obj)
+                       for node, datetime_obj in results]
+            return min(results)[1]
+
+        scripts = self.parser.getElementsByTag(doc, tag='script', attr={'type': "application/ld+json"})
+        for script in scripts:
+            try:
+                script = json.loads(script.text)
+            except (json.JSONDecodeError, TypeError):
+                try:
+                    # Sometimes we get json error because of not escaped newline characters
+                    script = RE_NEXTLINE.sub('', script.text)
+                    script = json.loads(script)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            if not isinstance(script, list):
+                script = [script]
+            for x in script:
+                if isinstance(x, dict):
+                    for date_str in (x.get('datePublished', ''), x.get('dateCreated', '')):
+                        if not date_str:
+                            continue
+                        date_str = str(date_str)
+                        datetime_obj = parse_date_str(date_str.strip())
+                        if datetime_obj:
+                            results.append(datetime_obj)
+        if results:
+            return min(results)
         return None
 
     def get_title(self, doc):
@@ -422,7 +485,7 @@ class ContentExtractor(object):
                     break
         if attr:
             value = attr[:2]
-            if re.search(RE_LANG, value):
+            if RE_LANG.search(value):
                 return value.lower()
 
         return None

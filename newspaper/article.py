@@ -197,6 +197,8 @@ class Article(object):
             # `parse` call failed, return nothing
             return
 
+        doc_clean_doc_map = dict(zip(self.doc.iterdescendants(),
+                                     self.clean_doc.iterdescendants()))
         # TODO: Fix this, sync in our fix_url() method
         parse_candidate = self.get_parse_candidate()
         self.link_hash = parse_candidate.link_hash  # MD5
@@ -237,11 +239,6 @@ class Article(object):
 
         meta_data = self.extractor.get_meta_data(self.clean_doc)
         self.set_meta_data(meta_data)
-
-        self.publish_date = self.extractor.get_publishing_date(
-            self.url,
-            self.clean_doc)
-
         # Before any computations on the body, clean DOM object
         self.doc = document_cleaner.clean(self.doc)
 
@@ -258,7 +255,11 @@ class Article(object):
             self.set_article_html(article_html)
             self.set_text(text)
 
-        self.fetch_images()
+        self.publish_date = self.extractor.get_publishing_date(
+            self.url, self.clean_doc, doc_clean_doc_map.get(self.top_node))
+
+        if self.config.fetch_images:
+            self.fetch_images()
 
         self.is_parsed = True
         self.release_resources()
