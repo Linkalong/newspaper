@@ -77,6 +77,25 @@ def get_base_domain(url):
 def check_url(*args, **kwargs):
     return ExhaustiveFullTextCase.check_url(*args, **kwargs)
 
+pubdates_failed_urls = [
+    'about.com1', 'about.com2', 'theglobeandmail.com1', 'theglobeandmail.com2', 'telegraph.co.uk1',
+    'telegraph.co.uk2', 'self.com1', 'self.com2', 'thedebrief.co.uk1', 'thedebrief.co.uk2',
+    'graziadaily.co.uk1', 'graziadaily.co.uk2', 'recipe.com1', 'recipe.com2',
+    'apartmenttherapy.com1', 'apartmenttherapy.com2', 'architecturaldigest.com2',
+    'coolhunting.com1', 'details.com1', 'details.com2', 'thekitchn.com1', 'thekitchn.com2',
+    'theatlanticcities.com1', 'theatlanticcities.com2', 'upworthy.com1', 'upworthy.com2',
+    'vogue.de1', 'vogue.de2', 'backstage.com1', 'backstage.com2', 'globalnews.ca1',
+    'globalnews.ca2', 'uproxx.com1', 'uproxx.com2', 'usnews.com2', 'glamour.com1', 'glamour.com2',
+    'livescience.com1', 'livescience.com2', 'space.com1', 'space.com2', 'adoption.com1', 'bhg.com1',
+    'bhg.com2', 'nydailynews.com1', 'vanityfair.com1', 'talkingpointsmemo.com1']
+fulltext_failed_urls = [
+    'telegraph.co.uk1', 'dailystar.co.uk1', 'dailystar.co.uk2', 'thedebrief.co.uk1',
+    'thedebrief.co.uk2', 'pixable.com1', 'pixable.com2', 'recipe.com1', 'apartmenttherapy.com1',
+    'apartmenttherapy.com2', 'pixelmonkey.org1', 'pixelmonkey.org2', 'bostonherald.com1',
+    'mashable.com2', 'oregonlive.com1', 'newyorker.com1', 'slate.com1', 'thekitchn.com1',
+    'thekitchn.com2', 'theatlantic.com1', 'wetpaint.com1', 'wetpaint.com2', 'avclub.com1',
+    'gulflive.com2', 'theroot.com1', 'lifebuzz.com1', 'space.com1', 'readwrite.com1',
+    'thenextweb.com1']
 
 @unittest.skipIf('fulltext' not in sys.argv, 'Skipping fulltext tests')
 class ExhaustiveFullTextCase(unittest.TestCase):
@@ -102,7 +121,9 @@ class ExhaustiveFullTextCase(unittest.TestCase):
         else:
             correct_text = mock_resource_with(res_filename, 'txt')
             if not (a.text == correct_text):
-                # print('Diff: ', simplediff.diff(correct_text, a.text))
+                # import simplediff
+                # from pprint import pprint
+                # pprint(simplediff.diff(correct_text, a.text))
                 # `correct_text` holds the reason of failure if failure
                 print('%s -- %s -- %s' %
                       ('Fulltext failed',
@@ -112,6 +133,8 @@ class ExhaustiveFullTextCase(unittest.TestCase):
                 # extraction tests because we are constantly tweaking the
                 # algorithm and improving
                 # assert a.text == correct_text
+        pubdate_failed = pubdate_failed and res_filename not in pubdates_failed_urls
+        fulltext_failed = fulltext_failed and res_filename not in fulltext_failed_urls
         return pubdate_failed, fulltext_failed
 
     @print_test
@@ -138,8 +161,9 @@ class ExhaustiveFullTextCase(unittest.TestCase):
               (total_fulltext_failed, len(urls)))
         print('%s pubdate extractions failed out of %s' %
               (total_pubdates_failed, len(urls)))
-        self.assertGreaterEqual(47, total_pubdates_failed)
-        self.assertGreaterEqual(20, total_fulltext_failed)
+
+        self.assertEqual(0, total_pubdates_failed)
+        self.assertEqual(0, total_fulltext_failed)
 
 
 class ArticleTestCase(unittest.TestCase):
@@ -237,7 +261,7 @@ class ArticleTestCase(unittest.TestCase):
         self.assertEqual(TITLE, self.article.title)
         self.assertEqual(LEN_IMGS, len(self.article.imgs))
         self.assertEqual(META_LANG, self.article.meta_lang)
-        self.assertEqual('2013-11-27 00:00:00', str(self.article.publish_date))
+        self.assertEqual('2013-11-27 00:00:00+00:00', str(self.article.publish_date))
 
     @print_test
     def test_meta_type_extraction(self):
