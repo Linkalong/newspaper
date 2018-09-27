@@ -25,7 +25,8 @@ class DocumentCleaner(object):
             "|cnn_stryspcvbx|^inset$|pagetools|post-attributes"
             "|welcome_form|contentTools2|the_answers"
             "|communitypromo|runaroundLeft|subscribe|vcard|articleheadings"
-            "|date|^print$|popup|author-dropdown|tools|socialtools|byline"
+            "|date(?!-posts|-outer)"  # blogspot.com rules
+            "|^print$|popup|author-dropdown|tools|socialtools|byline"
             "|konafilter|KonaFilter|breadcrumbs|^fn$|wp-caption-text"
             "|legende|ajoutVideo|timestamp|js_replies"
         )
@@ -216,13 +217,17 @@ class DocumentCleaner(object):
         return nodes_to_return
 
     def replace_with_para(self, doc, div):
+        # Cleanup tags with useless text
+        tags = ['select']
+        for node in self.parser.getElementsByTags(div, tags):
+            self.parser.remove(node)
         self.parser.replaceTag(div, 'p')
 
     def div_to_para(self, doc, dom_type):
         bad_divs = 0
         else_divs = 0
         divs = self.parser.getElementsByTag(doc, tag=dom_type)
-        tags = ['a', 'blockquote', 'dl', 'div', 'img', 'ol', 'p',
+        tags = ['blockquote', 'dl', 'div', 'img', 'ol', 'p',
                 'pre', 'table', 'ul']
         for div in divs:
             items = self.parser.getElementsByTags(div, tags)
