@@ -120,7 +120,7 @@ class ExhaustiveFullTextCase(unittest.TestCase):
             pubdate_failed, fulltext_failed = True, True
         else:
             correct_text = mock_resource_with(res_filename, 'txt')
-            if not (a.text == correct_text):
+            if not (a.text == correct_text) and res_filename not in fulltext_failed_urls:
                 # import simplediff
                 # from pprint import pprint
                 # pprint(simplediff.diff(correct_text, a.text))

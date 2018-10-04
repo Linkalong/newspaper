@@ -1031,6 +1031,8 @@ class ContentExtractor(object):
         link to text ratio, then the text is less likely to be relevant
         """
         links = self.parser.getElementsByTag(e, tag='a')
+        # skip empty links
+        links = [link for link in links if link.get('href')]
         if not links:
             return False
 
@@ -1043,15 +1045,13 @@ class ContentExtractor(object):
         for link in links:
             sb.append(self.parser.getText(link))
 
-        link_text = ''.join(sb)
+        link_text = ' '.join(sb)
         link_words = link_text.split()
         num_link_words = float(len(link_words))
         num_links = float(len(links))
         link_divisor = float(num_link_words / words_number)
         score = float(link_divisor * num_links)
-        if score >= 1.0:
-            return True
-        return False
+        return score >= 1.0
         # return True if score > 1.0 else False
 
     def get_score(self, node):
