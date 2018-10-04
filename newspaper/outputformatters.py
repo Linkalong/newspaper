@@ -143,7 +143,6 @@ class OutputFormatter(object):
         DOM depth is too deep. Many media non-content links are
         eliminated: "related", "loading gallery", etc
         """
-
         def get_depth(node, depth=1):
             """Computes depth of an lxml element via BFS, this would be
             in parser if it were used anywhere else besides this method
@@ -163,5 +162,5 @@ class OutputFormatter(object):
             return
 
         last_node = top_level_nodes[-1]
-        if get_depth(last_node) >= 2:
+        if get_depth(last_node) >= 2 and len(self.parser.getText(last_node)) < 100:
             self.parser.remove(last_node)

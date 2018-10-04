@@ -128,6 +128,11 @@ class ExhaustiveFullTextCase(unittest.TestCase):
                 print('%s -- %s -- %s' %
                       ('Fulltext failed',
                        res_filename, correct_text.strip()))
+
+                # Use this to update texts
+                # with open(os.path.join(TEST_DIR, "data/text/%s.txt" % (res_filename,)), 'w') as f:
+                #     f.write(a.text)
+
                 fulltext_failed = True
                 # TODO: assert statements are commented out for full-text
                 # extraction tests because we are constantly tweaking the

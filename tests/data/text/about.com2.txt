@@ -77,3 +77,5 @@ Kim, H., Mitsudomi, T., Soo, R., and B. Cho. Personalized therapy on the horizon
 Li, T., Kung, H., Mack, P., and D. Gandara. Genotyping and genomic profiling of non-small-cell lung cancer: implications for current and future therapies. Journal of Clinical Oncology. 2013. 31(8):1039-49.
 
 Luo, S., and D. Lam. Oncogenic driver mutations in lung cancer. Translational Respiratory Medicine. 2013. 1:6.
+
+Villaruz, L., Burns, T., Ramfidis, V., and M. Socinski. Personalizing therapy in advanced non-small cell lung cancer. Seminars in Respiratory and Critical Care Medicine. 2013. 34(6):822-36.
