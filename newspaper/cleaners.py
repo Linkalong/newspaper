@@ -231,7 +231,7 @@ class DocumentCleaner(object):
                 'pre', 'table', 'ul']
         for div in divs:
             items = self.parser.getElementsByTags(div, tags)
-            if div is not None and len(items) == 0:
+            if div is not None and len(items) == 0 and self.parser.getText(div):
                 self.replace_with_para(doc, div)
                 bad_divs += 1
             elif div is not None:
