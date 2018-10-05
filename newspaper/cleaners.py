@@ -49,6 +49,7 @@ class DocumentCleaner(object):
             .append("\t")\
             .append("^\\s+$")
         self.contains_article = './/article|.//*[@id="article"]|.//*[@itemprop="articleBody"]'
+        self.article_nodes_re = 'article|StoryBody|post-body'
 
     def clean(self, doc_to_clean):
         """Remove chunks of the DOM as specified
@@ -67,6 +68,7 @@ class DocumentCleaner(object):
                                                self.facebook_braodcasting_re)
         doc_to_clean = self.remove_nodes_regex(doc_to_clean, self.twitter_re)
         doc_to_clean = self.clean_para_spans(doc_to_clean)
+        doc_to_clean = self.article_to_para(doc_to_clean)
         doc_to_clean = self.div_to_para(doc_to_clean, 'div')
         doc_to_clean = self.div_to_para(doc_to_clean, 'span')
         doc_to_clean = self.div_to_para(doc_to_clean, 'section')
@@ -227,7 +229,7 @@ class DocumentCleaner(object):
         bad_divs = 0
         else_divs = 0
         divs = self.parser.getElementsByTag(doc, tag=dom_type)
-        tags = ['blockquote', 'dl', 'div', 'img', 'ol', 'p',
+        tags = ['a', 'blockquote', 'dl', 'div', 'img', 'ol', 'p',
                 'pre', 'table', 'ul']
         for div in divs:
             items = self.parser.getElementsByTags(div, tags)
@@ -244,4 +246,12 @@ class DocumentCleaner(object):
                 for name, value in attrib.items():
                     div.set(name, value)
                 else_divs += 1
+        return doc
+
+    def article_to_para(self, doc):
+        for selector in ['id', 'class']:
+            reg = "//*[re:test(@%s, '%s', 'i')]" % (selector, self.article_nodes_re)
+            article_nodes = self.parser.xpath_re(doc, reg)
+            for node in article_nodes:
+                self.replace_with_para(doc, node)
         return doc
