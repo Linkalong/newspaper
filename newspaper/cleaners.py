@@ -249,7 +249,7 @@ class DocumentCleaner(object):
         return doc
 
     def article_to_para(self, doc):
-        for selector in ['id', 'class']:
+        for selector in ('id', 'class'):
             reg = "//*[re:test(@%s, '%s', 'i')]" % (selector, self.article_nodes_re)
             article_nodes = self.parser.xpath_re(doc, reg)
             for node in article_nodes:
