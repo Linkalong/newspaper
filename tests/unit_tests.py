@@ -10,6 +10,8 @@ import traceback
 import re
 from collections import defaultdict, OrderedDict
 import concurrent.futures
+from dateutil.parser import parse as parse_datetime
+from dateutil.tz import UTC
 
 TEST_DIR = os.path.abspath(os.path.dirname(__file__))
 PARENT_DIR = os.path.join(TEST_DIR, '..')
@@ -97,6 +99,12 @@ fulltext_failed_urls = [
     'thekitchn.com2', 'theatlantic.com1', 'wetpaint.com1', 'wetpaint.com2', 'avclub.com1',
     'gulflive.com2', 'theroot.com1', 'lifebuzz.com1', 'space.com1', 'readwrite.com1',
     'thenextweb.com1']
+# TODO: Move this to files and check for all pages
+pages_publish_dates = {
+    'publictechnology.net1': parse_datetime('2018-02-02T03:33:33+00:00'),
+    'buildersmerchantsjournal.net1': parse_datetime('15th January 2018').replace(tzinfo=UTC),
+}
+
 
 @unittest.skipIf('fulltext' not in sys.argv, 'Skipping fulltext tests')
 class ExhaustiveFullTextCase(unittest.TestCase):
@@ -113,8 +121,9 @@ class ExhaustiveFullTextCase(unittest.TestCase):
             a = Article(url)
             a.download(html)
             a.parse()
-            if a.publish_date is None:
-                pubdate_failed = True
+            pubdate_failed = a.publish_date is None or \
+                             (res_filename in pages_publish_dates
+                              and pages_publish_dates[res_filename] != a.publish_date)
         except Exception:
             print('<< URL: %s parse ERROR >>' % url)
             traceback.print_exc()

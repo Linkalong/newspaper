@@ -183,7 +183,7 @@ class ContentExtractor(object):
 
         def parse_date_str(date_str):
             try:
-                datetime_obj = date_parser(date_str)
+                datetime_obj = date_parser(date_str.strip())
                 if datetime_obj.tzinfo is None:
                     datetime_obj = datetime_obj.replace(tzinfo=datetime.timezone.utc)
                 else:
@@ -194,6 +194,21 @@ class ContentExtractor(object):
                 # specifier, e.g. /2014/04/
                 return None
 
+        # Get pubdate from metadata
+        PUBLISH_DATE_META_TAGS = [
+            {'tag': 'meta', 'attribute': 'property', 'value': 'article:published_time', 'content': 'content'},
+            {'tag': 'meta', 'attribute': 'property', 'value': 'og:published_time', 'content': 'content'},
+        ]
+
+        for known_meta_tag in PUBLISH_DATE_META_TAGS:
+            meta_tags = self.parser.getElementsByTag(
+                doc, known_meta_tag['tag'], known_meta_tag['attribute'], known_meta_tag['value'])
+            for meta_tag in meta_tags:
+                pub_date = parse_date_str(self.parser.getAttribute(meta_tag, known_meta_tag['content']))
+                if pub_date:
+                    return pub_date
+
+        # Get pubdate from URL
         date_match = re.search(urls.DATE_REGEX, url)
         if date_match:
             date_str = date_match.group(0)
@@ -201,13 +216,13 @@ class ContentExtractor(object):
             if datetime_obj:
                 return datetime_obj
 
+        # Get pubdate from other metadata
         PUBLISH_DATE_TAGS = [
             {'attribute': 'property', 'value': 'rnews:datePublished', 'content': 'content'},
             {'attribute': 'property', 'value': 'article:published_time', 'content': 'content'},
             {'attribute': 'name', 'value': 'OriginalPublicationDate', 'content': 'content'},
             {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'datetime'},
             {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'full-date'},
-            {'attribute': 'property', 'value': 'og:published_time', 'content': 'content'},
             {'attribute': 'name', 'value': 'article_date_original', 'content': 'content'},
             {'attribute': 'name', 'value': 'publication_date', 'content': 'content'},
             {'attribute': 'name', 'value': 'sailthru.date', 'content': 'content'},
@@ -253,7 +268,7 @@ class ContentExtractor(object):
                     meta_tag,
                     known_meta_tag['content']) or ''
                 for possible_date_str in (date_str, meta_tag.text_content()):
-                    datetime_obj = parse_date_str(possible_date_str.strip())
+                    datetime_obj = parse_date_str(possible_date_str)
                     if datetime_obj:
                         results.append((meta_tag, datetime_obj))
 
@@ -269,6 +284,7 @@ class ContentExtractor(object):
                        for node, datetime_obj in results]
             return min(results)[1]
 
+        # Get pubdate from scripts
         scripts = self.parser.getElementsByTag(doc, tag='script', attr={'type': "application/ld+json"})
         for script in scripts:
             try:
