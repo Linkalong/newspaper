@@ -182,6 +182,8 @@ class ContentExtractor(object):
         """
 
         def parse_date_str(date_str):
+            if date_str is None:
+                return None
             try:
                 datetime_obj = date_parser(date_str.strip())
                 if datetime_obj.tzinfo is None:
