@@ -52,7 +52,7 @@ class Parser(object):
         if not converted.unicode_markup:
             raise Exception(
                 'Failed to detect encoding of article HTML, tried: %s' %
-                ', '.join(converted.tried_encodings))
+                ', '.join(str(t) for t in converted.tried_encodings))
         html = converted.unicode_markup
         return html
 
