@@ -55,6 +55,57 @@ bad_domains = ['amazon', 'doubleclick', 'twitter']
 
 
 class ContentExtractor(object):
+
+    PUBLISH_DATE_TAGS = [{
+        'attribute': 'property',
+        'values_re': re.compile('|'.join(['rnews:datePublished',
+                                          'article:published_time',
+                                          'bt:pubdate']), re.I),
+        'content': 'content'
+    }, {
+        'attribute': 'itemprop',
+        'values_re': re.compile('datePublished', re.I),
+        'content': 'datetime'
+    }, {
+        'attribute': 'itemprop',
+        'values_re': re.compile('datePublished', re.I),
+        'content': 'full-date'
+    }, {
+        'attribute': 'name',
+        'values_re': re.compile('|'.join(['OriginalPublicationDate',
+                                          'article_date_original',
+                                          'publication_date',
+                                          'sailthru.date',
+                                          'PublishDate',
+                                          'publishdate',
+                                          'article.created',
+                                          'timestamp',
+                                          'pubdate',
+                                          'date',
+                                          'article.published',
+                                          'dc.date.issued',
+                                          'cxenseparse:recs:publishtime',
+                                          'published-date',
+                                          'date_published']), re.I),
+        'content': 'content'
+    }, {
+        'attribute': 'itemprop',
+        'values_re': re.compile('|'.join(['datepublished',
+                                          'datePublished',
+                                          'datecreated',
+                                          'dateCreated',
+                                          'datePosted']), re.I),
+        'content': 'content'
+    }, {
+        'attribute': 'http-equiv',
+        'values_re': re.compile('date', re.I),
+        'content': 'content'
+    }, {
+        'attribute': 'class',
+        'values_re': re.compile('date', re.I),
+        'content': 'content'
+    }]
+
     def __init__(self, config):
         self.config = config
         self.parser = self.config.get_parser()
@@ -219,35 +270,6 @@ class ContentExtractor(object):
                 return datetime_obj
 
         # Get pubdate from other metadata
-        PUBLISH_DATE_TAGS = [
-            {'attribute': 'property', 'value': 'rnews:datePublished', 'content': 'content'},
-            {'attribute': 'property', 'value': 'article:published_time', 'content': 'content'},
-            {'attribute': 'name', 'value': 'OriginalPublicationDate', 'content': 'content'},
-            {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'datetime'},
-            {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'full-date'},
-            {'attribute': 'name', 'value': 'article_date_original', 'content': 'content'},
-            {'attribute': 'name', 'value': 'publication_date', 'content': 'content'},
-            {'attribute': 'name', 'value': 'sailthru.date', 'content': 'content'},
-            {'attribute': 'name', 'value': 'PublishDate', 'content': 'content'},
-            {'attribute': 'name', 'value': 'publishdate', 'content': 'content'},
-            {'attribute': 'name', 'value': 'article.created', 'content': 'content'},
-            {'attribute': 'name', 'value': 'timestamp', 'content': 'content'},
-            {'attribute': 'name', 'value': 'pubdate', 'content': 'content'},
-            {'attribute': 'name', 'value': 'date', 'content': 'content'},
-            {'attribute': 'name', 'value': 'article.published', 'content': 'content'},
-            {'attribute': 'name', 'value': 'dc.date.issued', 'content': 'content'},
-            {'attribute': 'name', 'value': 'cxenseparse:recs:publishtime', 'content': 'content'},
-            {'attribute': 'name', 'value': 'published-date', 'content': 'content'},
-            {'attribute': 'name', 'value': 'date_published', 'content': 'content'},
-            {'attribute': 'property', 'value': 'bt:pubdate', 'content': 'content'},
-            {'attribute': 'itemprop', 'value': 'datepublished', 'content': 'content'},
-            {'attribute': 'itemprop', 'value': 'datePublished', 'content': 'content'},
-            {'attribute': 'itemprop', 'value': 'datecreated', 'content': 'content'},
-            {'attribute': 'itemprop', 'value': 'dateCreated', 'content': 'content'},
-            {'attribute': 'itemprop', 'value': 'datePosted', 'content': 'content'},
-            {'attribute': 'http-equiv', 'value': 'date', 'content': 'content'},
-            {'attribute': 'class', 'value': 'date', 'content': 'content'}
-        ]
 
         def get_path(node):
             path = []
@@ -260,15 +282,12 @@ class ContentExtractor(object):
         top_node_path = get_path(top_node)
         results = []
 
-        for known_meta_tag in PUBLISH_DATE_TAGS:
-            meta_tags = self.parser.getElementsByTag(
-                doc,
-                attr=known_meta_tag['attribute'],
-                value=known_meta_tag['value'])
-            for meta_tag in meta_tags:
-                date_str = self.parser.getAttribute(
-                    meta_tag,
-                    known_meta_tag['content']) or ''
+        for meta_tag in doc.iter():
+            for known_meta_tag in self.PUBLISH_DATE_TAGS:
+                value = meta_tag.attrib.get(known_meta_tag['attribute']) or ''
+                if not known_meta_tag['values_re'].search(value):
+                    continue
+                date_str = self.parser.getAttribute(meta_tag, known_meta_tag['content']) or ''
                 for possible_date_str in (date_str, meta_tag.text_content()):
                     datetime_obj = parse_date_str(possible_date_str)
                     if datetime_obj:
@@ -965,8 +984,7 @@ class ContentExtractor(object):
             self, current_sibling, baseline_score_siblings_para):
         """Adds any siblings that may have a decent score to this node
         """
-        if current_sibling.tag == 'p' and \
-                        len(self.parser.getText(current_sibling)) > 0:
+        if current_sibling.tag == 'p' and self.parser.hasText(current_sibling):
             e0 = current_sibling
             if e0.tail:
                 e0 = copy.deepcopy(e0)

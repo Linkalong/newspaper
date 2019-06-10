@@ -186,6 +186,10 @@ class Parser(object):
         return node.xpath('//comment()')
 
     @classmethod
+    def isComment(cls, node):
+        return isinstance(node, lxml.html.HtmlComment)
+
+    @classmethod
     def getParent(cls, node):
         return node.getparent()
 
@@ -214,6 +218,10 @@ class Parser(object):
     def getText(cls, node):
         txts = [i for i in node.itertext()]
         return text.innerTrim(' '.join(txts).strip())
+
+    @classmethod
+    def hasText(cls, node):
+        return any(i and not i.isspace() for i in node.itertext())
 
     @classmethod
     def previousSiblings(cls, node):

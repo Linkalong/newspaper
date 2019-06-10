@@ -3,6 +3,7 @@
 Holds the code for cleaning out unwanted tags from the lxml
 dom xpath.
 """
+import re
 import copy
 from .utils import ReplaceSequence
 
@@ -15,7 +16,7 @@ class DocumentCleaner(object):
         """
         self.config = config
         self.parser = self.config.get_parser()
-        self.remove_nodes_re = (
+        self.remove_nodes_re = re.compile(
             "^side$|combx|retweet|mediaarticlerelated|menucontainer|"
             "navbar|storytopbar-bucket|utility-bar|inline-share-tools"
             "|comment|PopularQuestions|contact|foot|footer|Footer|footnote"
@@ -28,28 +29,20 @@ class DocumentCleaner(object):
             "|date(?!-posts|-outer)"  # blogspot.com rules
             "|^print$|popup|author-dropdown|tools|socialtools|byline"
             "|konafilter|KonaFilter|breadcrumbs|^fn$|wp-caption-text"
-            "|legende|ajoutVideo|timestamp|js_replies"
+            "|legende|ajoutVideo|timestamp|js_replies",
+            re.I
         )
         self.regexp_namespace = "http://exslt.org/regular-expressions"
-        self.nauthy_ids_re = ("//*[re:test(@id, '%s', 'i')]" %
-                              self.remove_nodes_re)
-        self.nauthy_classes_re = ("//*[re:test(@class, '%s', 'i')]" %
-                                  self.remove_nodes_re)
-        self.nauthy_names_re = ("//*[re:test(@name, '%s', 'i')]" %
-                                self.remove_nodes_re)
         self.div_to_p_re = r"<(a|blockquote|dl|div|img|ol|p|pre|table|ul)"
-        self.caption_re = "^caption$"
-        self.google_re = " google "
-        self.entries_re = "^[^entry-]more.*$"
-        self.facebook_re = "[^-]facebook"
-        self.facebook_broadcasting_re = "facebook-broadcasting"
-        self.twitter_re = "[^-]twitter"
+        self.remove_re = re.compile("^caption$| google |^[^entry-]more.*$|[^-]facebook"
+                                    "|facebook-broadcasting|[^-]twitter", re.I)
+
         self.tablines_replacements = ReplaceSequence()\
             .create("\n", "\n\n")\
             .append("\t")\
             .append("^\\s+$")
         self.contains_article = './/article|.//*[@id="article"]|.//*[@itemprop="articleBody"]'
-        self.article_nodes_re = 'article|StoryBody|post-body'
+        self.article_nodes_re = re.compile('article|StoryBody|post-body', re.I)
 
     def clean(self, doc_to_clean):
         """Remove chunks of the DOM as specified
@@ -58,20 +51,19 @@ class DocumentCleaner(object):
         doc_to_clean = self.clean_article_tags(doc_to_clean)
         doc_to_clean = self.clean_em_tags(doc_to_clean)
         doc_to_clean = self.remove_drop_caps(doc_to_clean)
-        doc_to_clean = self.remove_scripts_styles(doc_to_clean)
-        doc_to_clean = self.clean_bad_tags(doc_to_clean)
-        doc_to_clean = self.remove_nodes_regex(doc_to_clean, self.caption_re)
-        doc_to_clean = self.remove_nodes_regex(doc_to_clean, self.google_re)
-        doc_to_clean = self.remove_nodes_regex(doc_to_clean, self.entries_re)
-        doc_to_clean = self.remove_nodes_regex(doc_to_clean, self.facebook_re)
-        doc_to_clean = self.remove_nodes_regex(doc_to_clean,
-                                               self.facebook_broadcasting_re)
-        doc_to_clean = self.remove_nodes_regex(doc_to_clean, self.twitter_re)
+
+        naughty_list = []
+        for node in doc_to_clean.iter():
+            if (self.is_script_style_comment(node)
+                    or self.clean_bad_tags(node)
+                    or self.remove_nodes_regex(node)):
+                naughty_list.append(node)
+        for node in naughty_list:
+            self.parser.remove(node)
+
         doc_to_clean = self.clean_para_spans(doc_to_clean)
         doc_to_clean = self.article_to_para(doc_to_clean)
-        doc_to_clean = self.div_to_para(doc_to_clean, 'div')
-        doc_to_clean = self.div_to_para(doc_to_clean, 'span')
-        doc_to_clean = self.div_to_para(doc_to_clean, 'section')
+        doc_to_clean = self.div_to_para(doc_to_clean, ['div', 'span', 'section'])
         return doc_to_clean
 
     def clean_body_classes(self, doc):
@@ -105,47 +97,22 @@ class DocumentCleaner(object):
             self.parser.drop_tag(item)
         return doc
 
-    def remove_scripts_styles(self, doc):
-        # remove scripts
-        scripts = self.parser.getElementsByTag(doc, tag='script')
-        for item in scripts:
-            self.parser.remove(item)
-        # remove styles
-        styles = self.parser.getElementsByTag(doc, tag='style')
-        for item in styles:
-            self.parser.remove(item)
-        # remove comments
-        comments = self.parser.getComments(doc)
-        for item in comments:
-            self.parser.remove(item)
+    def is_script_style_comment(self, node):
+        return self.parser.getTag(node) in ('script', 'style') or self.parser.isComment(node)
 
-        return doc
+    def clean_bad_tags(self, node):
+        for selector in ['id', 'class', 'name']:
+            value = node.attrib.get(selector) or ''
+            if self.remove_nodes_re.search(value) and not node.xpath(self.contains_article):
+                return True
+        return False
 
-    def clean_bad_tags(self, doc):
-        # ids
-        naughty_list = self.parser.xpath_re(doc, self.nauthy_ids_re)
-        for node in naughty_list:
-            if not node.xpath(self.contains_article):
-                self.parser.remove(node)
-        # class
-        naughty_classes = self.parser.xpath_re(doc, self.nauthy_classes_re)
-        for node in naughty_classes:
-            if not node.xpath(self.contains_article):
-                self.parser.remove(node)
-        # name
-        naughty_names = self.parser.xpath_re(doc, self.nauthy_names_re)
-        for node in naughty_names:
-            if not node.xpath(self.contains_article):
-                self.parser.remove(node)
-        return doc
-
-    def remove_nodes_regex(self, doc, pattern):
+    def remove_nodes_regex(self, node):
         for selector in ['id', 'class']:
-            reg = "//*[re:test(@%s, '%s', 'i')]" % (selector, pattern)
-            naughty_list = self.parser.xpath_re(doc, reg)
-            for node in naughty_list:
-                self.parser.remove(node)
-        return doc
+            value = node.attrib.get(selector) or ''
+            if self.remove_re.search(value):
+                return True
+        return False
 
     def clean_para_spans(self, doc):
         spans = self.parser.css_select(doc, 'p span')
@@ -225,15 +192,22 @@ class DocumentCleaner(object):
             self.parser.remove(node)
         self.parser.replaceTag(div, 'p')
 
-    def div_to_para(self, doc, dom_type):
+    def div_to_para(self, doc, dom_types):
         bad_divs = 0
         else_divs = 0
-        divs = self.parser.getElementsByTag(doc, tag=dom_type)
-        tags = ['a', 'blockquote', 'dl', 'div', 'img', 'ol', 'p',
-                'pre', 'table', 'ul']
-        for div in divs:
-            items = self.parser.getElementsByTags(div, tags)
-            if div is not None and len(items) == 0 and self.parser.getText(div):
+        tags = {'a', 'blockquote', 'dl', 'div', 'img', 'ol', 'p',
+                'pre', 'table', 'ul'}
+        nodes_with_tags = set()
+        nodes = list(doc.iter())
+        # Nodes are in depth first order, so iterate in reverse order
+        # to visit children before parents
+        for node in reversed(nodes):
+            if node.tag in tags or node in nodes_with_tags:
+                nodes_with_tags.add(node.getparent())
+        for div in nodes:
+            if div.tag not in dom_types:
+                continue
+            if (div is not None and div not in nodes_with_tags and self.parser.hasText(div)):
                 self.replace_with_para(doc, div)
                 bad_divs += 1
             elif div is not None:
@@ -249,9 +223,12 @@ class DocumentCleaner(object):
         return doc
 
     def article_to_para(self, doc):
-        for selector in ('id', 'class'):
-            reg = "//*[re:test(@%s, '%s', 'i')]" % (selector, self.article_nodes_re)
-            article_nodes = self.parser.xpath_re(doc, reg)
-            for node in article_nodes:
-                self.replace_with_para(doc, node)
+        article_nodes = []
+        for node in doc.iter():
+            for selector in ('id', 'class'):
+                value = node.attrib.get(selector) or ''
+                if self.article_nodes_re.search(value):
+                    article_nodes.append(node)
+        for node in article_nodes:
+            self.replace_with_para(doc, node)
         return doc

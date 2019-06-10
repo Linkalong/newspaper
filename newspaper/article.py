@@ -231,8 +231,9 @@ class Article(object):
         title = self.extractor.get_title(self.clean_doc)
         self.set_title(title)
 
-        authors = self.extractor.get_authors(self.clean_doc)
-        self.set_authors(authors)
+        if self.config.fetch_authors:
+            authors = self.extractor.get_authors(self.clean_doc)
+            self.set_authors(authors)
 
         meta_lang = self.extractor.get_meta_lang(self.clean_doc)
         self.set_meta_language(meta_lang)

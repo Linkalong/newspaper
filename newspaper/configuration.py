@@ -42,6 +42,9 @@ class Configuration(object):
         # Cache and save articles run after run
         self.memoize_articles = True
 
+        # Set this to false if you don't care about getting authors
+        self.fetch_authors = True
+
         # Set this to false if you don't care about getting images
         self.fetch_images = True
         self.image_dimension_ration = 16 / 9.0
