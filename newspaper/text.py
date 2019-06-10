@@ -212,3 +212,15 @@ class StopWordsBurmese(StopWords):
     def candidate_words(self, stripped_input):
         words = self.regexp.sub(r'𝕊\1', stripped_input).strip('𝕊').split('𝕊')
         return words
+
+
+class StopWordsThai(StopWords):
+    """Thai segmentation
+    """
+    def __init__(self, language='th'):
+        super(StopWordsThai, self).__init__(language='th')
+
+    def candidate_words(self, stripped_input):
+        import pythainlp
+        tokens = pythainlp.word_tokenize(stripped_input)
+        return tokens

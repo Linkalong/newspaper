@@ -72,7 +72,7 @@ class ContentExtractor(object):
         'content': 'full-date'
     }, {
         'attribute': 'name',
-        'values_re': re.compile('|'.join(['OriginalPublicationDate',
+        'values_re': re.compile('|'.join(('OriginalPublicationDate',
                                           'article_date_original',
                                           'publication_date',
                                           'sailthru.date',
@@ -86,7 +86,8 @@ class ContentExtractor(object):
                                           'dc.date.issued',
                                           'cxenseparse:recs:publishtime',
                                           'published-date',
-                                          'date_published']), re.I),
+                                          'date_published',
+                                          'publish_date')), re.I),
         'content': 'content'
     }, {
         'attribute': 'itemprop',
