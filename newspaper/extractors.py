@@ -44,6 +44,8 @@ A_HREF_TAG_SELECTOR = ("a[href*='/tag/'], a[href*='/tags/'], "
                        "a[href*='/topic/'], a[href*='?keyword=']")
 RE_LANG = re.compile(r'^[A-Za-z]{2}$')
 RE_NEXTLINE = re.compile(r'[\n\r\f\v]+')
+PUBLISHED_RE = re.compile('(published|updated):?', flags=re.I)
+PM_RE = re.compile(r'(\d{2}):\d{2}\s+(am|pm)', flags=re.I)
 
 good_paths = ['story', 'article', 'feature', 'featured', 'slides',
               'slideshow', 'gallery', 'news', 'video', 'media',
@@ -104,6 +106,10 @@ class ContentExtractor(object):
     }, {
         'attribute': 'class',
         'values_re': re.compile('date', re.I),
+        'content': 'datetime'
+    }, {
+        'attribute': 'class',
+        'values_re': re.compile('date|published', re.I),
         'content': 'content'
     }]
 
@@ -248,6 +254,21 @@ class ContentExtractor(object):
                 # specifier, e.g. /2014/04/
                 return None
 
+        def clean_date_str(date_str):
+            if date_str is None:
+                return None
+            date_str_lo = date_str.lower()
+            if 'published' in date_str_lo or 'updated' in date_str_lo:
+                date_str = PUBLISHED_RE.sub(' ', date_str)
+            if 'am' in date_str_lo or 'pm' in date_str_lo:
+                match = PM_RE.search(date_str)
+                if match and int(match.group(1)) > 12:
+                    # remove am or pm if hours > 12
+                    start, end = match.span(2)
+                    date_str = date_str[:start] + date_str[end:]
+            return date_str
+
+
         # Get pubdate from metadata
         PUBLISH_DATE_META_TAGS = [
             {'tag': 'meta', 'attribute': 'property', 'value': 'article:published_time', 'content': 'content'},
@@ -290,7 +311,7 @@ class ContentExtractor(object):
                     continue
                 date_str = self.parser.getAttribute(meta_tag, known_meta_tag['content']) or ''
                 for possible_date_str in (date_str, meta_tag.text_content()):
-                    datetime_obj = parse_date_str(possible_date_str)
+                    datetime_obj = parse_date_str(clean_date_str(possible_date_str))
                     if datetime_obj:
                         results.append((meta_tag, datetime_obj))
 
