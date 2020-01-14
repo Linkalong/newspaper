@@ -5,6 +5,7 @@ feedparser>=5.2.1
 jieba>=0.35.1
 lxml>=3.6.0
 nltk>=3.2.1
+pandas # required for pythainlp
 Pillow>=3.3.0
 pythainlp>=1.7.2
 python-dateutil>=2.5.3
