@@ -7,6 +7,7 @@ __author__ = 'Lucas Ou-Yang'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2014, Lucas Ou-Yang'
 
+import logging
 import os
 import re
 import string
@@ -14,6 +15,7 @@ import string
 from .utils import FileHelper
 
 TABSSPACE = re.compile(r'[\s\t]+')
+logger = logging.getLogger(__name__)
 
 
 def innerTrim(value):
@@ -62,6 +64,19 @@ class StopWords(object):
     _cached_stop_words = {}
 
     def __init__(self, language='en'):
+        for lang in map(str.lower, (language, "en")):
+            try:
+                self._load_language(lang)
+            except IOError as e:  # Catch IOError here because it is raised in FileHelper.loadResourceFile
+                if lang == "en":
+                    # There should be file for en. It not - then something is wrong
+                    raise e
+                else:
+                    logger.warning("%s language is not supported. Switch back to en", lang)
+            else:
+                break
+
+    def _load_language(self, language):
         if language not in self._cached_stop_words:
             path = os.path.join('text', 'stopwords-%s.txt' % language)
             self._cached_stop_words[language] = \
