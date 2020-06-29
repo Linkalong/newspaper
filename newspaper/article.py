@@ -441,6 +441,8 @@ class Article(object):
                 log.exception('TypeError other than None type error. '
                               'Cannot set top image using the Reddit '
                               'algorithm. Possible error with PIL., %s' % e)
+        except TimeoutError as e:
+            raise e
         except Exception as e:
             log.exception('Other error with setting top image for "%s" using the '
                           'Reddit algorithm. Possible error with PIL, %s', self.url, e)
