@@ -438,12 +438,12 @@ class Article(object):
             elif 'timed out' in e.args[0]:
                 log.debug('Download of picture timed out. Top image not set, %s' % e)
             else:
-                log.critical('TypeError other than None type error. '
-                             'Cannot set top image using the Reddit '
-                             'algorithm. Possible error with PIL., %s' % e)
+                log.exception('TypeError other than None type error. '
+                              'Cannot set top image using the Reddit '
+                              'algorithm. Possible error with PIL., %s' % e)
         except Exception as e:
-            log.critical('Other error with setting top image using the '
-                         'Reddit algorithm. Possible error with PIL, %s' % e)
+            log.exception('Other error with setting top image using the '
+                          'Reddit algorithm. Possible error with PIL, %s' % e)
 
     def set_title(self, input_title):
         if input_title:
