@@ -117,6 +117,10 @@ def fetch_url(url, useragent, referer=None, retries=1, dimension=False):
                 while not p.image and new_data:
                     try:
                         p.feed(new_data)
+                    except RuntimeError:
+                        # This happened for WebP. See: https://github.com/python-pillow/Pillow/issues/4745 for details.
+                        # Should be deleted after issue resolved and fix released.
+                        pass
                     except IOError:
                         traceback.print_exc()
                         p = None
