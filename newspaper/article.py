@@ -442,8 +442,8 @@ class Article(object):
                               'Cannot set top image using the Reddit '
                               'algorithm. Possible error with PIL., %s' % e)
         except Exception as e:
-            log.exception('Other error with setting top image using the '
-                          'Reddit algorithm. Possible error with PIL, %s' % e)
+            log.exception('Other error with setting top image for "%s" using the '
+                          'Reddit algorithm. Possible error with PIL, %s', self.url, e)
 
     def set_title(self, input_title):
         if input_title:
