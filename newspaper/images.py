@@ -16,6 +16,7 @@ import urllib.parse
 
 import requests
 from PIL import Image, ImageFile
+from urllib3.exceptions import ProtocolError
 
 from . import urls
 
@@ -150,7 +151,7 @@ def fetch_url(url, useragent, referer=None, retries=1, dimension=False):
 
             return content_type, content
 
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, ProtocolError) as e:
             cur_try += 1
             if cur_try >= retries:
                 log.debug('error while fetching: %s refer: %s' %
