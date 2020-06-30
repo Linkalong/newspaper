@@ -16,7 +16,7 @@ import urllib.parse
 
 import requests
 from PIL import Image, ImageFile
-from urllib3.exceptions import ProtocolError
+from urllib3.exceptions import HTTPError
 
 from . import urls
 
@@ -121,11 +121,7 @@ def fetch_url(url, useragent, referer=None, retries=1, dimension=False):
                         # This happened for WebP. See: https://github.com/python-pillow/Pillow/issues/4745 for details.
                         # Should be deleted after issue resolved and fix released.
                         pass
-                    except IOError:
-                        traceback.print_exc()
-                        p = None
-                        break
-                    except ValueError:
+                    except (IOError, ValueError):
                         traceback.print_exc()
                         p = None
                         break
@@ -155,7 +151,7 @@ def fetch_url(url, useragent, referer=None, retries=1, dimension=False):
 
             return content_type, content
 
-        except (requests.exceptions.RequestException, ProtocolError) as e:
+        except (requests.exceptions.RequestException, HTTPError) as e:
             cur_try += 1
             if cur_try >= retries:
                 log.debug('error while fetching: %s refer: %s' %
